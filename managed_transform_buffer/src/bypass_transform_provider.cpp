@@ -1,0 +1,49 @@
+// Copyright 2025 The Autoware Foundation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Co-developed by Tier IV, Inc.
+
+#include <managed_transform_buffer/bypass_transform_provider.hpp>
+
+#include <memory>
+#include <string>
+
+namespace managed_transform_buffer
+{
+
+BypassTransformProvider::BypassTransformProvider(rclcpp::Node * node, tf2::Duration cache_time)
+: node_(node)
+{
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock(), cache_time);
+  tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
+}
+
+BypassTransformProvider::~BypassTransformProvider() = default;
+
+std::optional<TransformStamped> BypassTransformProvider::getTransform(
+  const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
+  const tf2::Duration & timeout)
+{
+  try {
+    auto tf = tf_buffer_->lookupTransform(target_frame, source_frame, time, timeout);
+    return std::make_optional<TransformStamped>(tf);
+  } catch (const tf2::TransformException & ex) {
+    RCLCPP_ERROR(
+      node_->get_logger(), "Failure to get transform from %s to %s with error: %s",
+      target_frame.c_str(), source_frame.c_str(), ex.what());
+    return std::nullopt;
+  }
+}
+
+}  // namespace managed_transform_buffer

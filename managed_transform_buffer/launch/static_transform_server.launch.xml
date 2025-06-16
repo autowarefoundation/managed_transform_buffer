@@ -1,0 +1,7 @@
+<launch>
+  <arg name="input_get_static_transform_srv" default="/managed_transform_buffer/get_static_transform"/>
+
+  <node pkg="managed_transform_buffer" exec="static_transform_server" name="static_transform_server" namespace="managed_transform_buffer" output="both">
+    <remap from="managed_transform_buffer/get_static_transform" to="$(var input_get_static_transform_srv)"/>
+  </node>
+</launch>

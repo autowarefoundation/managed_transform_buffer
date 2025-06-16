@@ -17,6 +17,16 @@ rosdep install --from-paths src --ignore-src -y
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON --packages-select managed_transform_buffer
 ```
 
+## StaticTransformServer
+
+This package also includes a `StaticTransformServer` that provides a service to check if transforms between frames are static. The server should be run independently:
+
+```bash
+ros2 launch managed_transform_buffer static_transform_server.launch.xml
+```
+
+The server provides the `get_static_transform` service that returns whether a transform between two frames exists and if it's static.
+
 ## Usage
 
 Library exposes a few handy function for handling TFs and PointCloud2 transformations.

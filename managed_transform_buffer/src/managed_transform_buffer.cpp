@@ -23,6 +23,7 @@
 #include <Eigen/src/Geometry/Transform.h>
 #include <pcl/common/io.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <tf2_ros/buffer_interface.h>
 
 #include <string>
 
@@ -30,27 +31,25 @@ namespace managed_transform_buffer
 {
 
 ManagedTransformBuffer::ManagedTransformBuffer(
-  rcl_clock_type_t clock_type, const bool force_dynamic, tf2::Duration discovery_timeout,
-  tf2::Duration cache_time)
+  rclcpp::Node * node, const bool force_dynamic, const bool non_managed, tf2::Duration cache_time)
+: provider_(node, force_dynamic, non_managed, cache_time), node_(node)
 {
-  provider_ = &ManagedTransformBufferProvider::getInstance(
-    clock_type, force_dynamic, discovery_timeout, cache_time);
 }
 
 template <>
 std::optional<TransformStamped> ManagedTransformBuffer::getTransform<TransformStamped>(
   const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
-  return provider_->getTransform(target_frame, source_frame, time, timeout, logger);
+  return provider_.getTransform(target_frame, source_frame, time, timeout);
 }
 
 template <>
 std::optional<tf2::Transform> ManagedTransformBuffer::getTransform<tf2::Transform>(
   const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
-  auto tf = provider_->getTransform(target_frame, source_frame, time, timeout, logger);
+  auto tf = provider_.getTransform(target_frame, source_frame, time, timeout);
   if (!tf.has_value()) {
     return std::nullopt;
   }
@@ -64,9 +63,9 @@ std::optional<tf2::Transform> ManagedTransformBuffer::getTransform<tf2::Transfor
 template <>
 std::optional<Eigen::Affine3f> ManagedTransformBuffer::getTransform<Eigen::Affine3f>(
   const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
-  auto tf = provider_->getTransform(target_frame, source_frame, time, timeout, logger);
+  auto tf = provider_.getTransform(target_frame, source_frame, time, timeout);
   if (!tf.has_value()) {
     return std::nullopt;
   }
@@ -86,9 +85,9 @@ std::optional<Eigen::Affine3f> ManagedTransformBuffer::getTransform<Eigen::Affin
 template <>
 std::optional<Eigen::Affine3d> ManagedTransformBuffer::getTransform<Eigen::Affine3d>(
   const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
-  auto tf = provider_->getTransform(target_frame, source_frame, time, timeout, logger);
+  auto tf = provider_.getTransform(target_frame, source_frame, time, timeout);
   if (!tf.has_value()) {
     return std::nullopt;
   }
@@ -106,9 +105,9 @@ std::optional<Eigen::Affine3d> ManagedTransformBuffer::getTransform<Eigen::Affin
 template <>
 std::optional<Eigen::Matrix4f> ManagedTransformBuffer::getTransform<Eigen::Matrix4f>(
   const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
-  auto tf = provider_->getTransform(target_frame, source_frame, time, timeout, logger);
+  auto tf = provider_.getTransform(target_frame, source_frame, time, timeout);
   if (!tf.has_value()) {
     return std::nullopt;
   }
@@ -132,9 +131,9 @@ std::optional<Eigen::Matrix4f> ManagedTransformBuffer::getTransform<Eigen::Matri
 template <>
 std::optional<Eigen::Matrix4d> ManagedTransformBuffer::getTransform<Eigen::Matrix4d>(
   const std::string & target_frame, const std::string & source_frame, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
-  auto tf = provider_->getTransform(target_frame, source_frame, time, timeout, logger);
+  auto tf = provider_.getTransform(target_frame, source_frame, time, timeout);
   if (!tf.has_value()) {
     return std::nullopt;
   }
@@ -156,121 +155,121 @@ std::optional<Eigen::Matrix4d> ManagedTransformBuffer::getTransform<Eigen::Matri
 template <>
 std::optional<TransformStamped> ManagedTransformBuffer::getTransform<TransformStamped>(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return getTransform<TransformStamped>(
-    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout), logger);
+    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 template <>
 std::optional<tf2::Transform> ManagedTransformBuffer::getTransform<tf2::Transform>(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return getTransform<tf2::Transform>(
-    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout), logger);
+    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 template <>
 std::optional<Eigen::Affine3f> ManagedTransformBuffer::getTransform<Eigen::Affine3f>(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return getTransform<Eigen::Affine3f>(
-    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout), logger);
+    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 template <>
 std::optional<Eigen::Affine3d> ManagedTransformBuffer::getTransform<Eigen::Affine3d>(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return getTransform<Eigen::Affine3d>(
-    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout), logger);
+    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 template <>
 std::optional<Eigen::Matrix4f> ManagedTransformBuffer::getTransform<Eigen::Matrix4f>(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return getTransform<Eigen::Matrix4f>(
-    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout), logger);
+    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 template <>
 std::optional<Eigen::Matrix4d> ManagedTransformBuffer::getTransform<Eigen::Matrix4d>(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return getTransform<Eigen::Matrix4d>(
-    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout), logger);
+    target_frame, source_frame, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 template <>
 std::optional<TransformStamped> ManagedTransformBuffer::getLatestTransform<TransformStamped>(
-  const std::string & target_frame, const std::string & source_frame, const rclcpp::Logger & logger)
+  const std::string & target_frame, const std::string & source_frame)
 {
   return getTransform<TransformStamped>(
-    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero(), logger);
+    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero());
 }
 
 template <>
 std::optional<tf2::Transform> ManagedTransformBuffer::getLatestTransform<tf2::Transform>(
-  const std::string & target_frame, const std::string & source_frame, const rclcpp::Logger & logger)
+  const std::string & target_frame, const std::string & source_frame)
 {
   return getTransform<tf2::Transform>(
-    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero(), logger);
+    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero());
 }
 
 template <>
 std::optional<Eigen::Affine3f> ManagedTransformBuffer::getLatestTransform<Eigen::Affine3f>(
-  const std::string & target_frame, const std::string & source_frame, const rclcpp::Logger & logger)
+  const std::string & target_frame, const std::string & source_frame)
 {
   return getTransform<Eigen::Affine3f>(
-    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero(), logger);
+    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero());
 }
 
 template <>
 std::optional<Eigen::Affine3d> ManagedTransformBuffer::getLatestTransform<Eigen::Affine3d>(
-  const std::string & target_frame, const std::string & source_frame, const rclcpp::Logger & logger)
+  const std::string & target_frame, const std::string & source_frame)
 {
   return getTransform<Eigen::Affine3d>(
-    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero(), logger);
+    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero());
 }
 
 template <>
 std::optional<Eigen::Matrix4f> ManagedTransformBuffer::getLatestTransform<Eigen::Matrix4f>(
-  const std::string & target_frame, const std::string & source_frame, const rclcpp::Logger & logger)
+  const std::string & target_frame, const std::string & source_frame)
 {
   return getTransform<Eigen::Matrix4f>(
-    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero(), logger);
+    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero());
 }
 
 template <>
 std::optional<Eigen::Matrix4d> ManagedTransformBuffer::getLatestTransform<Eigen::Matrix4d>(
-  const std::string & target_frame, const std::string & source_frame, const rclcpp::Logger & logger)
+  const std::string & target_frame, const std::string & source_frame)
 {
   return getTransform<Eigen::Matrix4d>(
-    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero(), logger);
+    target_frame, source_frame, tf2::TimePointZero, tf2::Duration::zero());
 }
 
 bool ManagedTransformBuffer::transformPointcloud(
   const std::string & target_frame, const sensor_msgs::msg::PointCloud2 & cloud_in,
   sensor_msgs::msg::PointCloud2 & cloud_out, const tf2::TimePoint & time,
-  const tf2::Duration & timeout, const rclcpp::Logger & logger)
+  const tf2::Duration & timeout)
 {
   if (
     pcl::getFieldIndex(cloud_in, "x") == -1 || pcl::getFieldIndex(cloud_in, "y") == -1 ||
     pcl::getFieldIndex(cloud_in, "z") == -1) {
     RCLCPP_ERROR_THROTTLE(
-      logger, *provider_->getClock(), 3000,
+      node_->get_logger(), *node_->get_clock(), 3000,
       "Cloud does not contain x, y, z fields. Cannot transform.");
     return false;
   }
   if (target_frame.empty() || cloud_in.header.frame_id.empty()) {
     RCLCPP_ERROR_THROTTLE(
-      logger, *provider_->getClock(), 3000,
+      node_->get_logger(), *node_->get_clock(), 3000,
       "Target frame (%s) or source frame (%s) is empty. Cannot transform.", target_frame.c_str(),
       cloud_in.header.frame_id.c_str());
     return false;
@@ -281,7 +280,7 @@ bool ManagedTransformBuffer::transformPointcloud(
     return true;
   }
   auto eigen_transform =
-    getTransform<Eigen::Matrix4f>(target_frame, cloud_in.header.frame_id, time, timeout, logger);
+    getTransform<Eigen::Matrix4f>(target_frame, cloud_in.header.frame_id, time, timeout);
   if (!eigen_transform.has_value()) {
     return false;
   }
@@ -293,21 +292,15 @@ bool ManagedTransformBuffer::transformPointcloud(
 bool ManagedTransformBuffer::transformPointcloud(
   const std::string & target_frame, const sensor_msgs::msg::PointCloud2 & cloud_in,
   sensor_msgs::msg::PointCloud2 & cloud_out, const rclcpp::Time & time,
-  const rclcpp::Duration & timeout, const rclcpp::Logger & logger)
+  const rclcpp::Duration & timeout)
 {
   return transformPointcloud(
-    target_frame, cloud_in, cloud_out, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout),
-    logger);
+    target_frame, cloud_in, cloud_out, tf2_ros::fromRclcpp(time), tf2_ros::fromRclcpp(timeout));
 }
 
 bool ManagedTransformBuffer::isStatic() const
 {
-  return provider_->isStatic();
-}
-
-rclcpp::Logger ManagedTransformBuffer::defaultLogger()
-{
-  return rclcpp::get_logger("managed_transform_buffer");
+  return provider_.isStatic();
 }
 
 }  // namespace managed_transform_buffer

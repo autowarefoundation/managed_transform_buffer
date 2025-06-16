@@ -16,16 +16,38 @@ ament_auto_find_build_dependencies()
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
   src/managed_transform_buffer.cpp
-  src/managed_transform_buffer_provider.cpp
+  src/static_transform_provider.cpp
+  src/dynamic_transform_provider.cpp
+  src/transform_provider.cpp
+  src/bypass_transform_provider.cpp
+)
+
+ament_auto_add_library(${PROJECT_NAME}_server SHARED
+  src/static_transform_server.cpp
+)
+
+rclcpp_components_register_node(${PROJECT_NAME}_server
+  PLUGIN "managed_transform_buffer::StaticTransformServer"
+  EXECUTABLE static_transform_server
 )
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 
-  ament_add_ros_isolated_gtest(${PROJECT_NAME}_test test/test_managed_transform_buffer.cpp)
+  add_executable(${PROJECT_NAME}_test test/test_managed_transform_buffer.cpp)
   target_link_libraries(${PROJECT_NAME}_test
     ${PROJECT_NAME}
+    gtest_main
+    gtest
+  )
+  install(TARGETS ${PROJECT_NAME}_test
+    DESTINATION lib/${PROJECT_NAME}
+  )
+
+  add_launch_test(
+    test/test_with_server.py
+    TIMEOUT "60"
   )
 endif()
 
@@ -38,4 +60,6 @@ if(BUILD_EXAMPLES)
   )
 endif()
 
-ament_auto_package()
+ament_auto_package(INSTALL_TO_SHARE
+  launch
+)
