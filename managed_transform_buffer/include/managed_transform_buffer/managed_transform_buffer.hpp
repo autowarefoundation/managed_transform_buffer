@@ -60,7 +60,7 @@ public:
    * @param[in] cache_time how long to keep a history of transforms
    */
   explicit ManagedTransformBuffer(
-    rclcpp::Node * node, const bool force_dynamic = false, const bool non_managed = false,
+    rclcpp::Node * node, const bool force_dynamic = false, const bool non_managed = true,
     tf2::Duration cache_time = tf2::Duration(tf2::BUFFER_CORE_DEFAULT_CACHE_TIME));
 
   /** @brief Destroy the Managed Transform Buffer object */
