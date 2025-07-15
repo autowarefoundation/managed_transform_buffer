@@ -16,6 +16,7 @@
 
 #include "managed_transform_buffer/transform_provider.hpp"
 
+#include "managed_transform_buffer/managed_transform_buffer.hpp"
 #include "managed_transform_buffer/static_transform_provider.hpp"
 
 #include <tf2/LinearMath/Transform.hpp>
@@ -34,24 +35,23 @@ namespace managed_transform_buffer
 {
 
 TransformProvider::TransformProvider(
-  rclcpp::Node * node, const bool force_dynamic, const bool non_managed, tf2::Duration cache_time)
-: node_(node), cache_time_(cache_time)
+  rclcpp::Node * node, const ManagedTransformBufferConfig & config)
+: node_(node), config_(config)
 {
-  if (non_managed) {
-    bypass_tf_provider_ = std::make_unique<BypassTransformProvider>(node, cache_time_);
+  if (config_.non_managed) {
+    bypass_tf_provider_ = std::make_unique<BypassTransformProvider>(node, config_.cache_time);
     return;
   }
-  if (force_dynamic) {
-    dynamic_tf_provider_ =
-      &DynamicTransformProvider::getInstance(node->get_clock()->get_clock_type(), cache_time_);
-  } else {
-    static_tf_provider_ = std::make_unique<StaticTransformProvider>(node);
+  if (config_.force_dynamic) {
+    dynamic_tf_provider_ = &DynamicTransformProvider::getInstance(
+      node->get_clock()->get_clock_type(), config_.cache_time);
+    is_static_.store(false);
   }
 }
 
 bool TransformProvider::isStatic() const
 {
-  return dynamic_tf_provider_ == nullptr;
+  return is_static_.load();
 }
 
 std::optional<TransformStamped> TransformProvider::getTransform(
@@ -61,18 +61,41 @@ std::optional<TransformStamped> TransformProvider::getTransform(
   if (bypass_tf_provider_) {
     return bypass_tf_provider_->getTransform(target_frame, source_frame, time, timeout);
   }
+  if (config_.force_dynamic) {
+    return dynamic_tf_provider_->getTransform(
+      target_frame, source_frame, time, timeout, node_->get_logger());
+  }
+
+  // Lazy initialization
+  std::call_once(static_tf_provider_init_flag_, [this]() {
+    try {
+      static_tf_provider_ =
+        std::make_unique<StaticTransformProvider>(node_, config_.tf_server_timeout_ms);
+    } catch (const std::runtime_error & e) {
+      RCLCPP_WARN(node_->get_logger(), "%s Falling back to dynamic TF provider.", e.what());
+      is_static_.store(false);
+      dynamic_tf_provider_ = &DynamicTransformProvider::getInstance(
+        node_->get_clock()->get_clock_type(), config_.cache_time);
+    }
+  });
+
   if (isStatic()) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!isStatic()) {  // Check again after acquiring the lock is best performance-wise
+      return dynamic_tf_provider_->getTransform(
+        target_frame, source_frame, time, timeout, node_->get_logger());
+    }
     auto static_tf = static_tf_provider_->getStaticTransform(target_frame, source_frame, time);
     if (!static_tf.success) {
       return std::nullopt;
     }
-    if (!static_tf.is_static) {
-      dynamic_tf_provider_ =
-        &DynamicTransformProvider::getInstance(node_->get_clock()->get_clock_type(), cache_time_);
-      return dynamic_tf_provider_->getTransform(
-        target_frame, source_frame, time, timeout, node_->get_logger());
+    if (static_tf.is_static) {
+      return static_tf.transform;
     }
-    return static_tf.transform;
+    is_static_.store(false);
+    dynamic_tf_provider_ = &DynamicTransformProvider::getInstance(
+      node_->get_clock()->get_clock_type(), config_.cache_time);
+    mutex_.unlock();
   }
   return dynamic_tf_provider_->getTransform(
     target_frame, source_frame, time, timeout, node_->get_logger());

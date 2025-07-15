@@ -18,6 +18,7 @@
 #define MANAGED_TRANSFORM_BUFFER__MANAGED_TRANSFORM_BUFFER_HPP_
 
 #include "managed_transform_buffer/transform_provider.hpp"
+#include "managed_transform_buffer/utils.hpp"
 
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
@@ -53,15 +54,14 @@ public:
   /**
    * @brief Construct a new Managed Transform Buffer object
    *
+   * Server delay is overriden by "tf_server_timeout_ms" ROS parameter if exists.
+   *
    * @param[in] node the parent node
-   * @param[in] force_dynamic if true, TF listener will be activated during initialization
-   * @param[in] non_managed if true, the default ROS-ish lookup transform will be used instead of
-   * the managed TF buffer
-   * @param[in] cache_time how long to keep a history of transforms
+   * @param[in] config the configuration for the ManagedTransformBuffer
    */
   explicit ManagedTransformBuffer(
-    rclcpp::Node * node, const bool force_dynamic = false, const bool non_managed = false,
-    tf2::Duration cache_time = tf2::Duration(tf2::BUFFER_CORE_DEFAULT_CACHE_TIME));
+    rclcpp::Node * node,
+    const ManagedTransformBufferConfig & config = ManagedTransformBufferConfig());
 
   /** @brief Destroy the Managed Transform Buffer object */
   ~ManagedTransformBuffer() = default;

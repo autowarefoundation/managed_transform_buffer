@@ -415,8 +415,10 @@ TEST_F(TestManagedTransformBuffer, TestAllTemplateSpecializations)
 
 TEST_F(TestManagedTransformBuffer, TestForceDynamicMode)
 {
-  auto force_dynamic_buffer = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>(
-    node_.get(), true, false);  // force_dynamic = true
+  auto config = managed_transform_buffer::ManagedTransformBufferConfig(
+    managed_transform_buffer::DEFAULT_TF_SERVER_TIMEOUT_MS, true, false);  // force_dynamic = true
+  auto force_dynamic_buffer =
+    std::make_unique<managed_transform_buffer::ManagedTransformBuffer>(node_.get(), config);
 
   sendStaticTransform(tf_base_to_lidar_top_, true);
 
@@ -429,8 +431,10 @@ TEST_F(TestManagedTransformBuffer, TestForceDynamicMode)
 
 TEST_F(TestManagedTransformBuffer, TestNonManagedMode)
 {
-  auto non_managed_buffer = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>(
-    node_.get(), false, true);  // non_managed = true
+  auto config = managed_transform_buffer::ManagedTransformBufferConfig(
+    managed_transform_buffer::DEFAULT_TF_SERVER_TIMEOUT_MS, false, true);  // non_managed = true
+  auto non_managed_buffer =
+    std::make_unique<managed_transform_buffer::ManagedTransformBuffer>(node_.get(), config);
 
   sendStaticTransform(tf_base_to_lidar_top_, true);
 

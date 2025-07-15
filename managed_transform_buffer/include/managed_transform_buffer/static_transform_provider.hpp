@@ -89,8 +89,9 @@ public:
    * @brief Construct a new Static Transform Provider object.
    *
    * @param[in] node the ROS node for service client access
+   * @param[in] tf_server_timeout_ms maximum time to wait for static transform service availability
    */
-  explicit StaticTransformProvider(rclcpp::Node * node);
+  explicit StaticTransformProvider(rclcpp::Node * node, uint32_t tf_server_timeout_ms);
 
   /**
    * @brief Destroy the Static Transform Provider object.

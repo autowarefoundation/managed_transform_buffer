@@ -16,6 +16,8 @@
 
 #include "managed_transform_buffer/static_transform_provider.hpp"
 
+#include "managed_transform_buffer/utils.hpp"
+
 #include <rclcpp/executors.hpp>
 #include <tf2/LinearMath/Transform.hpp>
 #include <tf2/convert.hpp>
@@ -28,6 +30,7 @@
 #include <tf2_ros/create_timer_ros.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <utility>
@@ -35,10 +38,11 @@
 namespace managed_transform_buffer
 {
 
-StaticTransformProvider::StaticTransformProvider(rclcpp::Node * node) : node_(node)
+StaticTransformProvider::StaticTransformProvider(rclcpp::Node * node, uint32_t tf_server_timeout_ms)
+: node_(node)
 {
   // Create a separate callback group for the service client
-  group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant, false);
   client_ = node_->create_client<managed_transform_buffer_msgs::srv::GetStaticTransform>(
     "/managed_transform_buffer/get_static_transform", rmw_qos_profile_services_default, group_);
 
@@ -51,11 +55,28 @@ StaticTransformProvider::StaticTransformProvider(rclcpp::Node * node) : node_(no
   // Start the executor in a separate thread
   executor_thread_ = std::thread([this]() { service_executor_->spin(); });
 
-  while (!client_->wait_for_service(std::chrono::seconds(1)) && rclcpp::ok()) {
-    RCLCPP_WARN(
-      node->get_logger(),
-      "managed_transform_buffer service is not available - global static_transform_server is not "
-      "running!");
+  // Override server delay if parameter exists
+  if (node_->has_parameter("tf_server_timeout_ms")) {
+    node_->get_parameter("tf_server_timeout_ms", tf_server_timeout_ms);
+  } else {
+    tf_server_timeout_ms =
+      node_->declare_parameter<int64_t>("tf_server_timeout_ms", tf_server_timeout_ms);
+  }
+
+  // Wait for the service to become available
+  const auto timeout = std::chrono::milliseconds(tf_server_timeout_ms);
+  const auto interval = std::chrono::milliseconds(tf_server_timeout_ms / 5);
+  auto start_time = std::chrono::steady_clock::now();
+
+  while (!client_->wait_for_service(interval) && rclcpp::ok()) {
+    auto elapsed = std::chrono::steady_clock::now() - start_time;
+    if (elapsed >= timeout) {
+      service_executor_->cancel();
+      if (executor_thread_.joinable()) {
+        executor_thread_.join();
+      }
+      throw std::runtime_error("managed_transform_buffer service is not available.");
+    }
   }
 }
 

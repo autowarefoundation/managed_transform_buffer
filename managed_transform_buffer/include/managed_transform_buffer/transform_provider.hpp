@@ -20,6 +20,7 @@
 #include "managed_transform_buffer/bypass_transform_provider.hpp"
 #include "managed_transform_buffer/dynamic_transform_provider.hpp"
 #include "managed_transform_buffer/static_transform_provider.hpp"
+#include "managed_transform_buffer/utils.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -28,7 +29,9 @@
 
 #include <tf2_ros/buffer.h>
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 
@@ -50,13 +53,11 @@ public:
    * @brief Construct a new Transform Provider object.
    *
    * @param[in] node the ROS node for logging and service access
-   * @param[in] force_dynamic if true, forces the use of dynamic transform provider
-   * @param[in] non_managed if true, uses bypass transform provider for non-managed operation
-   * @param[in] cache_time how long to keep a history of transforms
+   * @param[in] config the configuration for the ManagedTransformBuffer
    */
   TransformProvider(
-    rclcpp::Node * node, const bool force_dynamic, const bool non_managed,
-    tf2::Duration cache_time);
+    rclcpp::Node * node,
+    const ManagedTransformBufferConfig & config = ManagedTransformBufferConfig());
 
   ~TransformProvider() = default;
 
@@ -82,10 +83,13 @@ public:
 
 private:
   rclcpp::Node * node_{nullptr};
+  ManagedTransformBufferConfig config_;
   std::unique_ptr<StaticTransformProvider> static_tf_provider_{nullptr};
   DynamicTransformProvider * dynamic_tf_provider_{nullptr};
   std::unique_ptr<BypassTransformProvider> bypass_tf_provider_{nullptr};
-  tf2::Duration cache_time_;
+  std::once_flag static_tf_provider_init_flag_;
+  std::mutex mutex_;
+  std::atomic<bool> is_static_{true};
 };
 
 }  // namespace managed_transform_buffer

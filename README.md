@@ -33,7 +33,7 @@ Library exposes a few handy function for handling TFs and PointCloud2 transforma
 
 ```cpp
 // Create a managed TF buffer
-auto managed_tf_buffer = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>();
+auto managed_tf_buffer = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>(this);
 
 // Get a transform from source_frame to target_frame
 auto tf_msg_transform = managed_tf_buffer->getTransform<geometry_msgs::msg::TransformStamped>("my_target_frame", "my_source_frame", this->now(), rclcpp::Duration::from_seconds(1));
@@ -60,8 +60,4 @@ ros2 run managed_transform_buffer example_managed_transform_buffer --ros-args -p
 
 ## Limitations
 
-- Requests for dynamic transforms with zero timeout might never succeed. This limitation is due to the fact that the listener is initialized for each transform request (till first occurrence of dynamic transform). If timeout is zero, the listener will not have enough time to fill the buffer. This can be controlled with `discovery_timeout` parameter for `ManagedTransformBuffer` class constructor. `discovery_timeout` (default: 20ms) is used to set timeout for the first occurrence of any transform:
-
-```cpp
-auto managed_tf_buffer = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>(RCL_ROS_TIME, false, tf2::durationFromSec(0.3));
-```
+- The Managed Transform Buffer requires the Static Transform Server to be running in order to avoid initialization of Transform Listener nodes for static transforms. By default, the Managed Transform Buffer waits for the Static Transform Server to be available for the time defined as `DEFAULT_TF_SERVER_TIMEOUT_MS`. When the timeout is reached, **it will fall back to the dynamic TF listener**. This timeout can also be configured via the `ManagedTransformBuffer` constructor's config argument. Additionally, it can be overridden by a `tf_server_timeout_ms` ROS parameter, which is a more convenient way to apply the timeout globally for all nodes in the system.

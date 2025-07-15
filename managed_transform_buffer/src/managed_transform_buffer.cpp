@@ -31,8 +31,8 @@ namespace managed_transform_buffer
 {
 
 ManagedTransformBuffer::ManagedTransformBuffer(
-  rclcpp::Node * node, const bool force_dynamic, const bool non_managed, tf2::Duration cache_time)
-: provider_(node, force_dynamic, non_managed, cache_time), node_(node)
+  rclcpp::Node * node, const ManagedTransformBufferConfig & config)
+: provider_(node, config), node_(node)
 {
 }
 
