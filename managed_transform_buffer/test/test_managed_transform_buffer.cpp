@@ -26,8 +26,8 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <gtest/gtest.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.hpp>
+#include <tf2_ros/transform_broadcaster.hpp>
 
 #include <cstdint>
 #include <memory>
