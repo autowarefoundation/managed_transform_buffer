@@ -2,8 +2,8 @@
 Changelog for package managed_transform_buffer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.0 (2026-02-14)
+------------------
 * chore: tf2_ros to hpp headers (`#26 <https://github.com/autowarefoundation/managed_transform_buffer/issues/26>`_)
   * chore: tf2_ros to hpp headers
   * fixup! chore: tf2_ros to hpp headers
