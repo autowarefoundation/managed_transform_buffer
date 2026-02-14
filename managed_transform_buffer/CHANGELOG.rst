@@ -2,6 +2,19 @@
 Changelog for package managed_transform_buffer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* chore: tf2_ros to hpp headers (`#26 <https://github.com/autowarefoundation/managed_transform_buffer/issues/26>`_)
+  * chore: tf2_ros to hpp headers
+  * fixup! chore: tf2_ros to hpp headers
+  ---------
+* fix: tf2 uses hpp headers in rolling (and is backported) (`#23 <https://github.com/autowarefoundation/managed_transform_buffer/issues/23>`_)
+  * fix: tf2 uses hpp headers in rolling (and is backported)
+  * Too enthusiastic regex replace
+  ---------
+* fix: templated pointcloud transform for PCL cloud (`#22 <https://github.com/autowarefoundation/managed_transform_buffer/issues/22>`_)
+* Contributors: Amadeusz Szymko, Tim Clephas
+
 0.1.0 (2025-04-10)
 -----------
 * fix: simplified get transform handling  (`#18 <https://github.com/autowarefoundation/ManagedTransformBuffer/issues/18>`_)
