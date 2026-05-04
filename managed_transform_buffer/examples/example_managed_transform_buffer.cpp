@@ -51,8 +51,9 @@ private:
   void cloudCb(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
   {
     sensor_msgs::msg::PointCloud2 transformed_cloud;
-    if (managed_tf_buffer_->transformPointcloud(
-          target_frame_, *msg, transformed_cloud, this->now(), rclcpp::Duration::from_seconds(1))) {
+    if (
+      managed_tf_buffer_->transformPointcloud(
+        target_frame_, *msg, transformed_cloud, this->now(), rclcpp::Duration::from_seconds(1))) {
       RCLCPP_INFO(get_logger(), "Pointcloud transformed");
       cloud_pub_->publish(transformed_cloud);
     }
