@@ -84,13 +84,33 @@ ManagedTransformBufferProvider::ManagedTransformBufferProvider(
   discovery_timeout_(discovery_timeout),
   logger_(rclcpp::get_logger("managed_transform_buffer"))
 {
-  executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-  executor_thread_ = std::make_shared<std::thread>(
-    std::bind(&rclcpp::executors::SingleThreadedExecutor::spin, executor_));
+#ifdef USE_AGNOCAST_ENABLED
+  // Only an executable that brought up the agnocast context instead of the rclcpp one needs the
+  // agnocast listener; it cannot create the rclcpp node the default listener is built on. Every
+  // other process, ENABLE_AGNOCAST=1 included, keeps the rclcpp listener.
+  use_agnocast_ = autoware::agnocast_wrapper::use_agnocast() && !rclcpp::ok();
+#endif
+  if (!useAgnocast()) {
+    executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+    executor_thread_ = std::make_shared<std::thread>(
+      std::bind(&rclcpp::executors::SingleThreadedExecutor::spin, executor_));
+  }
 
   static_tf_buffer_ = std::make_unique<TFMap>();
   tf_tree_ = std::make_unique<TreeMap>();
-  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(clock_, cache_time);
+#ifdef USE_AGNOCAST_ENABLED
+  if (useAgnocast()) {
+    auto buffer = std::make_unique<agnocast::Buffer>(clock_, cache_time);
+    tf_buffer_interface_ = buffer.get();
+    tf_buffer_ = std::move(buffer);
+  }
+#endif
+  if (!tf_buffer_) {
+    auto buffer = std::make_unique<tf2_ros::Buffer>(clock_, cache_time);
+    tf_buffer_ros_ = buffer.get();
+    tf_buffer_interface_ = buffer.get();
+    tf_buffer_ = std::move(buffer);
+  }
   tf_buffer_->setUsingDedicatedThread(true);
 
   tf_options_ = tf2_ros::detail::get_default_transform_listener_sub_options();
@@ -107,10 +127,22 @@ ManagedTransformBufferProvider::ManagedTransformBufferProvider(
 
 ManagedTransformBufferProvider::~ManagedTransformBufferProvider()
 {
-  executor_->cancel();
-  if (executor_thread_->joinable()) {
+#ifdef USE_AGNOCAST_ENABLED
+  if (agnocast_executor_) {
+    agnocast_executor_->cancel();
+  }
+#endif
+  if (executor_) {
+    executor_->cancel();
+  }
+  if (executor_thread_ && executor_thread_->joinable()) {
     executor_thread_->join();
   }
+}
+
+bool ManagedTransformBufferProvider::useAgnocast() const
+{
+  return use_agnocast_;
 }
 
 void ManagedTransformBufferProvider::activateListener()
@@ -118,11 +150,26 @@ void ManagedTransformBufferProvider::activateListener()
   std::lock_guard<std::mutex> listener_lock(listener_mutex_);
   operational_threads_.fetch_add(1);
   if (operational_threads_.load() != 1) return;
+#ifdef USE_AGNOCAST_ENABLED
+  if (useAgnocast()) {
+    agnocast_node_ =
+      std::make_shared<autoware::agnocast_wrapper::Node>(generateUniqueNodeName(), options_);
+    agnocast_tf_sub_ = agnocast_node_->create_subscription<tf2_msgs::msg::TFMessage>(
+      "/tf", tf2_ros::DynamicListenerQoS(), cb_, AUTOWARE_SUBSCRIPTION_OPTIONS{});
+    agnocast_tf_static_sub_ = agnocast_node_->create_subscription<tf2_msgs::msg::TFMessage>(
+      "/tf_static", tf2_ros::StaticListenerQoS(), cb_static_, AUTOWARE_SUBSCRIPTION_OPTIONS{});
+    agnocast_executor_ = std::make_shared<agnocast::AgnocastOnlySingleThreadedExecutor>();
+    agnocast_executor_->add_node(agnocast_node_->get_agnocast_node());
+    executor_thread_ =
+      std::make_shared<std::thread>([executor = agnocast_executor_]() { executor->spin(); });
+    return;
+  }
+#endif
   options_.arguments({"--ros-args", "-r", "__node:=" + generateUniqueNodeName()});
   node_ = rclcpp::Node::make_unique("_", options_);
   auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
     node_->get_node_base_interface(), node_->get_node_timers_interface());
-  tf_buffer_->setCreateTimerInterface(timer_interface);
+  tf_buffer_ros_->setCreateTimerInterface(timer_interface);
   callback_group_ =
     node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive, false);
   tf_options_.callback_group = callback_group_;
@@ -140,6 +187,20 @@ void ManagedTransformBufferProvider::deactivateListener()
   std::lock_guard<std::mutex> listener_lock(listener_mutex_);
   operational_threads_.fetch_sub(1);
   if (operational_threads_.load() != 0) return;
+#ifdef USE_AGNOCAST_ENABLED
+  if (useAgnocast()) {
+    agnocast_executor_->cancel();
+    if (executor_thread_->joinable()) {
+      executor_thread_->join();
+    }
+    executor_thread_.reset();
+    agnocast_executor_.reset();
+    agnocast_tf_static_sub_.reset();
+    agnocast_tf_sub_.reset();
+    agnocast_node_.reset();
+    return;
+  }
+#endif
   auto cb_grps = executor_->get_all_callback_groups();
   for (auto & cb_grp : cb_grps) {
     executor_->remove_callback_group(cb_grp.lock());
@@ -158,7 +219,7 @@ std::string ManagedTransformBufferProvider::generateUniqueNodeName()
 }
 
 void ManagedTransformBufferProvider::tfCallback(
-  const tf2_msgs::msg::TFMessage::SharedPtr msg, const bool is_static)
+  const tf2_msgs::msg::TFMessage::ConstSharedPtr & msg, const bool is_static)
 {
   std::string authority = "Authority undetectable";
   for (const auto & tf : msg->transforms) {
@@ -186,7 +247,7 @@ std::optional<TransformStamped> ManagedTransformBufferProvider::lookupTransform(
   const tf2::Duration & timeout, const rclcpp::Logger & logger) const
 {
   try {
-    auto tf = tf_buffer_->lookupTransform(target_frame, source_frame, time, timeout);
+    auto tf = tf_buffer_interface_->lookupTransform(target_frame, source_frame, time, timeout);
     return std::make_optional<TransformStamped>(tf);
   } catch (const tf2::TransformException & ex) {
     RCLCPP_ERROR_THROTTLE(

@@ -19,6 +19,12 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/managed_transform_buffer_provider.cpp
 )
 
+if(DEFINED ENV{ENABLE_AGNOCAST} AND "$ENV{ENABLE_AGNOCAST}" STREQUAL "1")
+  find_package(autoware_agnocast_wrapper REQUIRED)
+  ament_target_dependencies(${PROJECT_NAME} autoware_agnocast_wrapper)
+  autoware_agnocast_wrapper_setup(${PROJECT_NAME})
+endif()
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()

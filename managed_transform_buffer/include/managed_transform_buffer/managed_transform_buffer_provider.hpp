@@ -20,6 +20,13 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/buffer.hpp>
 
+#ifdef USE_AGNOCAST_ENABLED
+#include <agnocast/node/agnocast_only_single_threaded_executor.hpp>
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
+#include <autoware/agnocast_wrapper/tf2.hpp>
+#endif
+
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
 
@@ -160,7 +167,13 @@ private:
    * @param[in] msg the TF message
    * @param[in] is_static whether the TF topic refers to static transforms
    */
-  void tfCallback(const tf2_msgs::msg::TFMessage::SharedPtr msg, const bool is_static);
+  void tfCallback(const tf2_msgs::msg::TFMessage::ConstSharedPtr & msg, const bool is_static);
+
+  /** @brief Whether the listener runs on agnocast. Fixed at construction.
+   *
+   * @return true when this process brought up the agnocast context instead of the rclcpp one
+   */
+  bool useAgnocast() const;
 
   /** @brief Default ROS-ish lookupTransform trigger.
    *
@@ -224,6 +237,7 @@ private:
     const tf2::Duration & timeout, const rclcpp::Logger & logger);
 
   static std::unique_ptr<ManagedTransformBufferProvider> instance;
+  bool use_agnocast_{false};
   rclcpp::Node::SharedPtr node_{nullptr};
   rclcpp::Clock::SharedPtr clock_{nullptr};
   rclcpp::CallbackGroup::SharedPtr callback_group_{nullptr};
@@ -232,11 +246,22 @@ private:
   rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr tf_sub_{nullptr};
   rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> tf_options_;
   rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> tf_static_options_;
-  std::function<void(tf2_msgs::msg::TFMessage::SharedPtr)> cb_;
-  std::function<void(tf2_msgs::msg::TFMessage::SharedPtr)> cb_static_;
+  std::function<void(const tf2_msgs::msg::TFMessage::ConstSharedPtr &)> cb_;
+  std::function<void(const tf2_msgs::msg::TFMessage::ConstSharedPtr &)> cb_static_;
   std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> executor_{nullptr};
   std::shared_ptr<std::thread> executor_thread_{nullptr};
-  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  /// @brief tf2_ros::Buffer in rclcpp mode, agnocast::Buffer in agnocast mode. Both derive from
+  ///        tf2::BufferCore and tf2_ros::BufferInterface; the raw pointers below alias this one
+  ///        object so the call sites do not have to branch on the backend.
+  std::unique_ptr<tf2::BufferCore> tf_buffer_;
+  tf2_ros::BufferInterface * tf_buffer_interface_{nullptr};
+  tf2_ros::Buffer * tf_buffer_ros_{nullptr};
+#ifdef USE_AGNOCAST_ENABLED
+  std::shared_ptr<autoware::agnocast_wrapper::Node> agnocast_node_{nullptr};
+  std::shared_ptr<agnocast::AgnocastOnlySingleThreadedExecutor> agnocast_executor_{nullptr};
+  AUTOWARE_SUBSCRIPTION_PTR(tf2_msgs::msg::TFMessage) agnocast_tf_sub_ { nullptr };
+  AUTOWARE_SUBSCRIPTION_PTR(tf2_msgs::msg::TFMessage) agnocast_tf_static_sub_ { nullptr };
+#endif
   std::unique_ptr<TFMap> static_tf_buffer_;
   std::unique_ptr<TreeMap> tf_tree_;
   std::mt19937 random_engine_;
