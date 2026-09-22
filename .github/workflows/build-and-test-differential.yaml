@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-and-test-differential:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container: ${{ matrix.container }}
     strategy:
       fail-fast: false
@@ -57,7 +57,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   clang-tidy-differential:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container: ros:humble
     needs: build-and-test-differential
     steps:
