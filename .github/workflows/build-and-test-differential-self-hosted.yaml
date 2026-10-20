@@ -9,14 +9,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  prevent-no-label-execution:
-    uses: autowarefoundation/autoware-github-actions/.github/workflows/prevent-no-label-execution.yaml@v1
+  require-label:
+    uses: autowarefoundation/autoware-github-actions/.github/workflows/require-label.yaml@v1
     with:
       label: ARM64
+      run-condition: ${{ github.event_name == 'pull_request' }}
 
   build-and-test-differential-self-hosted:
-    needs: prevent-no-label-execution
-    if: ${{ needs.prevent-no-label-execution.outputs.run == 'true' }}
+    needs: require-label
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.require-label.outputs.result == 'true') }}
     runs-on: [self-hosted, linux, ARM64]
     container: ${{ matrix.container }}
     strategy:
