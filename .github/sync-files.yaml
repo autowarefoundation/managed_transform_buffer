@@ -36,4 +36,3 @@
     - source: codecov.yaml
     - source: setup.cfg
     - source: .github/workflows/build-and-test.yaml
-    - source: .github/workflows/build-and-test-differential.yaml
