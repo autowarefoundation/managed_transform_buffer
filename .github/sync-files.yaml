@@ -12,6 +12,9 @@
     - source: .github/dependabot.yaml
     - source: .github/stale.yml
     - source: .github/workflows/cancel-previous-workflows.yaml
+    - source: .github/workflows/check-build-depends.yaml
+    - source: .github/workflows/clang-tidy-pr-comments.yaml
+    - source: .github/workflows/clang-tidy-pr-comments-manually.yaml
     - source: .github/workflows/github-release.yaml
     - source: .github/workflows/pre-commit.yaml
     - source: .github/workflows/pre-commit-autoupdate.yaml
@@ -19,13 +22,17 @@
     - source: .github/workflows/semantic-pull-request.yaml
     - source: .github/workflows/spell-check-differential.yaml
     - source: .github/workflows/sync-files.yaml
+    - source: .github/workflows/update-codeowners-from-packages.yaml
     - source: .clang-format
     - source: .clang-tidy
     - source: .markdown-link-check.json
     - source: .markdownlint.yaml
+    - source: .pre-commit-config.yaml
     - source: .pre-commit-config-optional.yaml
     - source: .prettierignore
     - source: .prettierrc.yaml
     - source: .yamllint.yaml
     - source: CPPLINT.cfg
+    - source: codecov.yaml
     - source: setup.cfg
+    - source: .github/workflows/build-and-test.yaml
