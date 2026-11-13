@@ -1,3 +1,7 @@
+# This file is automatically synced from:
+# https://github.com/autowarefoundation/sync-file-templates
+# To make changes, update the source repository and follow the guidelines in its README.
+
 name: clang-tidy-pr-comments
 
 on:
@@ -7,13 +11,17 @@ on:
     types:
       - completed
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   clang-tidy-pr-comments:
     if: ${{ github.event.workflow_run.event == 'pull_request' && contains(fromJson('["success", "failure"]'), github.event.workflow_run.conclusion) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download analysis results
         run: |
@@ -37,7 +45,7 @@ jobs:
 
       - name: Check out PR head
         if: ${{ steps.check-fixes-yaml-existence.outputs.exists == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ steps.set-variables.outputs.pr-head-repo }}
           ref: ${{ steps.set-variables.outputs.pr-head-ref }}
