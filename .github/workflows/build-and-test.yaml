@@ -1,3 +1,7 @@
+# This file is automatically synced from:
+# https://github.com/autowarefoundation/sync-file-templates
+# To make changes, update the source repository and follow the guidelines in its README.
+
 name: build-and-test
 
 on:
@@ -5,6 +9,10 @@ on:
   schedule:
     - cron: 0 0 * * *
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
@@ -16,21 +24,22 @@ jobs:
       matrix:
         rosdistro:
           - humble
+          - jazzy
         include:
           - rosdistro: humble
             container: ros:humble
             build-depends-repos: build_depends.repos
+          - rosdistro: jazzy
+            container: ros:jazzy
+            build-depends-repos: build_depends.repos
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Free disk space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: actions/checkout@v7
         with:
-          tool-cache: false
-          dotnet: false
-          swap-storage: false
-          large-packages: false
+          fetch-depth: 1
+
+      - name: Show disk space before the tasks
+        run: df -h
 
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
@@ -58,10 +67,12 @@ jobs:
 
       - name: Upload coverage to CodeCov
         if: ${{ steps.test.outputs.coverage-report-files != '' }}
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: ${{ steps.test.outputs.coverage-report-files }}
           fail_ci_if_error: false
           verbose: true
           flags: total
-          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Show disk space after the tasks
+        run: df -h
