@@ -12,9 +12,13 @@ jobs:
       matrix:
         rosdistro:
           - humble
+          - jazzy
         include:
           - rosdistro: humble
             container: ros:humble
+            build-depends-repos: build_depends.repos
+          - rosdistro: jazzy
+            container: ros:jazzy
             build-depends-repos: build_depends.repos
     steps:
       - name: Check out repository
@@ -47,14 +51,16 @@ jobs:
           build-depends-repos: ${{ matrix.build-depends-repos }}
 
       - name: Upload coverage to CodeCov
-        if: ${{ steps.test.outputs.coverage-report-files != '' }}
-        uses: codecov/codecov-action@v4
+        if: ${{ steps.test.outputs.coverage-report-files != '' && matrix.rosdistro == 'jazzy' }}
+        # Intentionally flagless: flagging this partial upload would suppress the full-suite carryforward.
+        uses: codecov/codecov-action@v7
         with:
           files: ${{ steps.test.outputs.coverage-report-files }}
           fail_ci_if_error: false
           verbose: true
-          flags: differential
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
+          plugins: noop
 
   clang-tidy-differential:
     runs-on: ubuntu-24.04
