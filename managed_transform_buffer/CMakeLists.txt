@@ -33,6 +33,12 @@ if(BUILD_TESTING)
   target_link_libraries(${PROJECT_NAME}_test
     ${PROJECT_NAME}
   )
+
+  ament_add_ros_isolated_gtest(${PROJECT_NAME}_force_dynamic_test
+    test/test_managed_transform_buffer_force_dynamic.cpp)
+  target_link_libraries(${PROJECT_NAME}_force_dynamic_test
+    ${PROJECT_NAME}
+  )
 endif()
 
 if(BUILD_EXAMPLES)
