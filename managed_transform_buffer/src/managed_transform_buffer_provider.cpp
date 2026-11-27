@@ -41,6 +41,7 @@ ManagedTransformBufferProvider & ManagedTransformBufferProvider::getInstance(
   static ManagedTransformBufferProvider instance(clock_type, discovery_timeout, cache_time);
   if (force_dynamic) {
     if (instance.isStatic()) {
+      instance.activateListener();
       std::lock_guard<std::mutex> listener_lock(instance.listener_mutex_);
       std::unique_lock<std::shared_mutex> unq_buffer_lock(instance.buffer_mutex_);
       std::unique_lock<std::shared_mutex> unq_tree_lock(instance.tree_mutex_);
